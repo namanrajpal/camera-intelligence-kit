@@ -144,6 +144,24 @@ Existing 3D Fruit Slicer game using hand tracking:
 
 ---
 
+### 6. Apple Vision Framework (iOS-native hand tracking)
+
+**[createwithswift.com/detecting-hand-pose-with-the-vision-framework](https://www.createwithswift.com/detecting-hand-pose-with-the-vision-framework/)**
+
+Apple's Vision framework provides **built-in hand pose detection** on iOS/macOS with no model deployment needed:
+
+- 21 keypoints per hand (4 per finger + wrist) -- same topology as MediaPipe
+- Runs on Apple Neural Engine (ANE) -- extremely fast, hardware-optimized
+- Available since iOS 14 / macOS 11
+- No model file to ship, no ONNX/CoreML conversion needed
+- API returns `VNHumanHandPoseObservation` with joint positions and confidence
+
+**Relevance for us:** On iOS, we may not need YOLO26 or RTMPose at all. The Vision framework is Apple's own hand tracker running on their neural engine -- it will be faster and more battery-efficient than anything we ship. The Godot integration path would be a platform-specific native plugin that calls Vision API and feeds results into AIInput.
+
+**Action item:** When building iOS support, evaluate Vision framework as the iOS hand tracking backend alongside or instead of ONNX Runtime.
+
+---
+
 ## Cross-References
 
 - [Initial SOTA Survey](./edge-hand-tracking-sota-2026.md) -- MediaPipe limitations, 1-Euro filter, YOLO26, edge runtimes
