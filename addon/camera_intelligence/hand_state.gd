@@ -17,6 +17,11 @@ var screen_position: Vector2 = Vector2.ZERO
 var velocity: Vector2 = Vector2.ZERO
 ## Speed (magnitude of velocity)
 var speed: float = 0.0
+## Index fingertip velocity and speed (more responsive than palm for slashing)
+var fingertip_velocity: Vector2 = Vector2.ZERO
+var fingertip_speed: float = 0.0
+## Index fingertip position in normalized screen space
+var fingertip_position: Vector2 = Vector2.ZERO
 ## All 21 smoothed landmark positions (normalized 0..1)
 var landmarks: Array[Vector3] = []
 ## Key finger positions (smoothed, normalized)
@@ -68,13 +73,16 @@ func update_from_landmarks(raw_landmarks: Array[Vector3], dt: float) -> void:
 		+ Vector2(landmarks[RING_MCP].x, landmarks[RING_MCP].y)
 		+ Vector2(landmarks[PINKY_MCP].x, landmarks[PINKY_MCP].y)) / 5.0
 
-	# Velocity
+	# Velocity (palm)
 	if dt > 0.0 and is_tracked:
-		var new_velocity := (palm - screen_position) / dt
-		velocity = new_velocity
+		velocity = (palm - screen_position) / dt
 		speed = velocity.length()
+		# Fingertip velocity (index finger — reacts faster than palm)
+		fingertip_velocity = (index_tip - fingertip_position) / dt
+		fingertip_speed = fingertip_velocity.length()
 
 	screen_position = palm
+	fingertip_position = index_tip
 
 	# Pinch distance normalized by hand size
 	var hand_size := wrist.distance_to(Vector2(landmarks[MIDDLE_MCP].x, landmarks[MIDDLE_MCP].y))

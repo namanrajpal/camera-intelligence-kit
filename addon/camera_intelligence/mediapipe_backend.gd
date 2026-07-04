@@ -12,8 +12,14 @@ var camera_extension: CameraServerExtension
 var ai_input: Node  # Reference to AIInput singleton
 
 var _is_ready := false
+var _processing := false  # True while MediaPipe is working on a frame
 var _camera_viewport: SubViewport
 var _camera_texture_rect: TextureRect
+
+## Resolution to feed MediaPipe. Lower = faster inference, less accurate.
+## 320x240 gives ~4x speedup over 640x480 with minimal quality loss for hand tracking.
+var inference_width: int = 320
+var inference_height: int = 240
 
 const MODEL_PATH := "hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task"
 const MODEL_CACHE := "user://hand_landmarker.task"
@@ -58,12 +64,31 @@ func _on_permission(granted: bool) -> void:
 
 func _on_feed_added(_id: int) -> void:
 	_log("Feed added: %d" % _id)
-	if CameraServer.monitoring_feeds:
+	if not CameraServer.monitoring_feeds:
+		return
+
+	if camera_feed == null:
 		_try_open_camera()
+		return
+
+	# Already have a feed — check if the new one is preferred
+	var new_feed: CameraFeed = null
+	for f in CameraServer.feeds():
+		if f.get_id() == _id:
+			new_feed = f
+			break
+	if new_feed and _is_preferred_feed(new_feed) and not _is_preferred_feed(camera_feed):
+		_log("Preferred feed appeared, switching from '%s' to '%s'" % [
+			camera_feed.get_name(), new_feed.get_name()])
+		_switch_to_feed(new_feed)
 
 func _on_feeds_updated() -> void:
 	if CameraServer.monitoring_feeds:
 		_try_open_camera()
+
+func _is_preferred_feed(feed: CameraFeed) -> bool:
+	var fname: String = feed.get_name()
+	return "NexiGO" in fname or "USB" in fname or "Webcam" in fname
 
 func _try_open_camera() -> void:
 	if camera_feed != null:
@@ -75,13 +100,31 @@ func _try_open_camera() -> void:
 		return
 
 	# Prefer external webcam
-	camera_feed = feeds[0]
+	var chosen: CameraFeed = feeds[0]
 	for f in feeds:
-		var fname: String = f.get_name()
-		if "NexiGO" in fname or "USB" in fname or "Webcam" in fname:
-			camera_feed = f
+		if _is_preferred_feed(f):
+			chosen = f
 			break
 
+	_open_feed(chosen)
+
+	# Load ML model (only on first open)
+	_load_model()
+
+func _switch_to_feed(new_feed: CameraFeed) -> void:
+	# Disconnect old feed
+	if camera_feed:
+		camera_feed.feed_is_active = false
+		if camera_feed.format_changed.is_connected(_on_format_changed):
+			camera_feed.format_changed.disconnect(_on_format_changed)
+		if camera_feed.frame_changed.is_connected(_on_frame_changed):
+			camera_feed.frame_changed.disconnect(_on_frame_changed)
+	camera_feed = null
+
+	_open_feed(new_feed)
+
+func _open_feed(feed: CameraFeed) -> void:
+	camera_feed = feed
 	_log("Using feed: '%s' (id=%d)" % [camera_feed.get_name(), camera_feed.get_id()])
 
 	var formats = camera_feed.get_formats()
@@ -96,14 +139,13 @@ func _try_open_camera() -> void:
 	# Mirror for front camera
 	if camera_feed.get_position() != CameraFeed.FEED_BACK:
 		_camera_texture_rect.flip_h = true
+	else:
+		_camera_texture_rect.flip_h = false
 
 	# Activate
 	camera_feed.feed_is_active = true
 	_log("Feed activated, datatype=%d" % camera_feed.get_datatype())
 	_on_format_changed()
-
-	# Load ML model
-	_load_model()
 
 func _on_format_changed() -> void:
 	if camera_feed == null:
@@ -159,25 +201,42 @@ func _on_format_changed() -> void:
 
 	if frame_size == Vector2i.ZERO:
 		frame_size = Vector2i(640, 480)
-	_log("Frame size: %s" % str(frame_size))
+	_log("Camera native size: %s, inference size: %dx%d" % [
+		str(frame_size), inference_width, inference_height])
+	# SubViewport renders at camera native res — we downscale in _grab_and_detect
 	_camera_viewport.size = frame_size
 
 func _on_frame_changed() -> void:
 	if not _is_ready:
 		return
+	# Skip this frame if MediaPipe is still processing the previous one.
+	# This prevents a growing backlog of queued frames that cause increasing latency.
+	if _processing:
+		return
+	_processing = true
 
-	await RenderingServer.frame_post_draw
+	# Use call_deferred instead of await to avoid adding a full frame of latency.
+	# The SubViewport texture is ready by the time deferred calls run.
+	_grab_and_detect.call_deferred()
 
+func _grab_and_detect() -> void:
 	if _camera_viewport == null:
+		_processing = false
 		return
 	var texture := _camera_viewport.get_texture()
 	if texture == null:
+		_processing = false
 		return
 	var image: Image = texture.get_image()
 	if image == null or image.is_empty():
+		_processing = false
 		return
 
+	# Downscale for faster inference. MediaPipe doesn't need full resolution.
 	image.convert(Image.FORMAT_RGB8)
+	if image.get_width() > inference_width:
+		image.resize(inference_width, inference_height, Image.INTERPOLATE_BILINEAR)
+
 	var mp_image := MediaPipeImage.new()
 	mp_image.set_image(image)
 	task.detect_async(mp_image, Time.get_ticks_msec())
@@ -216,11 +275,14 @@ func _init_task(path: String) -> void:
 	file.close()
 
 	task = MediaPipeHandLandmarker.new()
+	# Args: base_options, running_mode, num_hands,
+	#        min_hand_detection_confidence, min_hand_presence_confidence, min_tracking_confidence
+	# Lower thresholds = fewer dropped frames during fast motion, slightly more false positives
 	task.initialize(
 		base_options,
 		MediaPipeVisionTask.RUNNING_MODE_LIVE_STREAM,
 		ai_input.max_hands,
-		0.5, 0.5, 0.5
+		0.4, 0.4, 0.3
 	)
 	task.result_callback.connect(_on_result)
 
@@ -229,6 +291,7 @@ func _init_task(path: String) -> void:
 	backend_ready.emit()
 
 func _on_result(result: MediaPipeHandLandmarkerResult, _image: MediaPipeImage, timestamp_ms: int) -> void:
+	_processing = false
 	ai_input.process_hand_result(
 		result.hand_landmarks,
 		result.handedness,

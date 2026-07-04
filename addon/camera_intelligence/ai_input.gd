@@ -30,14 +30,16 @@ signal status_changed(message: String)
 # ── Configuration ──────────────────────────────────────────
 
 ## 1-Euro filter: cutoff frequency at rest. Lower = less jitter but more lag.
-@export var smoothing_mincutoff: float = 1.0
+@export var smoothing_mincutoff: float = 1.5
 ## 1-Euro filter: speed coefficient. Higher = less lag during fast slashes.
-@export var smoothing_beta: float = 0.007
+## For hack-and-slash games, use 0.01-0.05. For precise pointing, use 0.001-0.007.
+@export var smoothing_beta: float = 0.04
 ## Mirror the camera horizontally (selfie mode).
 ## Set false for external USB webcams, true for built-in laptop cameras.
 @export var mirror_camera: bool = false
-## Maximum number of hands to track.
-@export var max_hands: int = 4
+## Maximum number of hands to track. Fewer = faster inference.
+## 2 is enough for single-player (both hands). Use 4 for two-player.
+@export var max_hands: int = 2
 
 # ── Internal State ─────────────────────────────────────────
 
@@ -158,7 +160,7 @@ func process_hand_result(
 
 		# Only emit signals after hand has been seen for a few frames
 		# This prevents ghost hands from fast movement
-		const MIN_FRAMES_TO_CONFIRM := 3
+		const MIN_FRAMES_TO_CONFIRM := 2
 		if hand.tracked_frames >= MIN_FRAMES_TO_CONFIRM:
 			if not was_tracked or hand.tracked_frames == MIN_FRAMES_TO_CONFIRM:
 				hand_appeared.emit(hand)
