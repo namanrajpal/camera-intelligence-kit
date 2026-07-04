@@ -41,7 +41,10 @@ addons/CameraServerExtension/*.xcframework/
 runs/
 datasets/
 *.pt
+*.pth
 wandb/
+__pycache__/
+*.pyc
 
 # OS / editor
 .DS_Store

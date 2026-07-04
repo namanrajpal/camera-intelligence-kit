@@ -25,10 +25,10 @@ Backends (MediaPipe / ONNX Runtime / ExecuTorch) are swappable implementation de
 
 ## Current phase
 
-**MVP 1 — hand tracking foundation built.** GDMP (MediaPipe GDExtension) is integrated and working on desktop with multi-hand tracking. Camera feeds via CameraServerExtension. Next: build the AIInput abstraction layer, then Fruit Chop game, then Android export.
+**MVP 2 — Fruit Chop game playable.** AIInput singleton built with 1-Euro smoothing + gesture detection. Fruit Chop game complete (60s, 6 fruit types, bombs, combos, slash trails, game over). Launcher with "Play With Air" branding and hover-to-select cards. Next: polish for demo, two-player scoring, Android export.
 
 **Demo target:** AI Tinkerers Seattle, July 13 2026.
-**First game:** Fruit Chop (two-player hand-slash fruit ninja).
+**First game:** Fruit Chop (hand-slash fruit ninja).
 
 ## Architecture (as built)
 
@@ -39,18 +39,52 @@ Godot 4.6.2 Project
 │   │   └── libs/                    # Native binaries (gitignored, ~400MB)
 │   └── CameraServerExtension/       # Native webcam drivers for Windows/iOS
 ├── addon/
-│   └── camera_intelligence/         # AIInput singleton (TODO)
+│   └── camera_intelligence/         # AIInput singleton + backend
+│       ├── ai_input.gd              # Autoload: signals, hand state, gesture dispatch
+│       ├── hand_state.gd            # Per-hand data (position, velocity, landmarks, pinch)
+│       ├── gesture_detector.gd      # Swipe + pinch detection (state machines)
+│       ├── gesture_event.gd         # Gesture data class
+│       ├── mediapipe_backend.gd     # Camera + MediaPipe integration, feed hot-swap
+│       └── smoothing.gd             # 1-Euro filter (per-landmark, speed-adaptive)
+├── scenes/
+│   ├── launcher/                    # "Play With Air" game selector
+│   │   ├── launcher.gd/tscn         # 5 game cards, hover-to-select, camera bg
+│   │   ├── game_card.gd             # Animated card with progress bar
+│   │   └── hand_cursor.gd           # Ring+dot cursor, per-player color
+│   └── fruit_chop/                  # Fruit Chop game (PLAYABLE)
+│       ├── fruit_chop.gd/tscn       # Game controller (729 lines)
+│       └── fruit_item.gd            # Fruit/bomb physics + slice VFX
+├── assets/
+│   ├── fruit_chop/                  # 20 game assets (fruits, bomb, splashes, star)
+│   ├── ui/                          # 20 UI assets (icons, cursors, buttons, branding)
+│   └── fonts/                       # Fredoka + Nunito variable TTFs
+├── tools/                           # Asset generation scripts (OpenAI API)
+├── docs/research/                   # SOTA research (YOLO26, 1-Euro, edge runtimes)
 ├── examples/
-│   └── hand_tracking_test/          # Working: camera → MediaPipe → landmarks
+│   └── hand_tracking_test/          # Raw landmark overlay test scene
 └── project.godot
 ```
 
-**Camera pipeline:**
+**Full pipeline (as built):**
 ```
 Webcam → CameraServerExtension → CameraTexture → SubViewport → Image
 → MediaPipeImage → MediaPipeHandLandmarker (C++ native, async)
-→ result_callback → 21 landmarks per hand, up to 4 hands
+→ result_callback → 21 landmarks per hand (up to 4 hands)
+→ AIInput.process_hand_result() → 1-Euro smooth → HandState
+→ 3-frame confirm → hand_appeared/hand_tracked signals
+→ GestureDetector.detect() → swipe/pinch events → hand_gesture signal
+→ Game scenes connect to signals → gameplay
 ```
+
+**Slash detection (Fruit Chop):**
+```
+Each frame: for each hand with speed > 0.6:
+  for each unsliced fruit within 80px of hand position:
+    → slice fruit, show halves + splash, score + combo
+```
+This is faster and more responsive than relying on GestureDetector's swipe events (which have 300ms cooldown).
+
+**Camera feed hot-swap:** When preferred feed (NexiGo/USB/Webcam) arrives after a non-preferred feed was already opened, the backend automatically disconnects the old feed and switches to the preferred one.
 
 **GDMP binaries:** Not from the v0.6 release (built for godot-cpp 4.4). Sourced from [GDMP-demo](https://github.com/j20001970/GDMP-demo) master, which CI-builds from GDMP master against godot-cpp 4.6-stable. To refresh: `git clone --depth 1 https://github.com/j20001970/GDMP-demo.git` and copy `project/addons/GDMP/` and `project/addons/CameraServerExtension/`.
 
