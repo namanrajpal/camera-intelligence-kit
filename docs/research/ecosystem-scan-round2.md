@@ -165,9 +165,11 @@ Apple's Vision framework provides built-in hand pose detection on iOS/macOS:
 - **Performance is unverified** for our use case. Vision framework is optimized for Apple hardware, but we don't know the actual FPS for multi-hand tracking at game speeds. Marketing says "real-time" but no public benchmarks exist for fast-motion hand tracking.
 - **GDMP already supports iOS.** We already have MediaPipe hand tracking binaries for iOS via the GDMP plugin. Vision framework would only be worth it if it's measurably faster/more reliable than MediaPipe on the same device.
 
-**Verdict:** Interesting future option but not actionable now. Requires Mac hardware, native iOS development, and benchmarking we can't do without a device. Filed as a long-term research item, not a near-term path.
+**Major update:** Apple has an [official Godot plugin repo](https://github.com/apple/plugins-for-godot) (68 stars, MIT license). GodotRealityKit already supports hand tracking on visionOS. Their GDExtension architecture (Objective-C++, Swift, GDScript) is the exact template we'd follow. This changes the feasibility assessment significantly -- we're not starting from scratch, we have Apple's own reference implementation to fork.
 
-**Action item (deferred):** If/when we have a Mac, prototype a minimal Vision framework iOS plugin and benchmark against GDMP MediaPipe on the same device.
+**Verdict:** Actionable when Mac is available (we have one). The `apple/plugins-for-godot` GDExtension structure is our template. Estimated ~13 hours. See detailed plan: [apple-vision-ios-backend.md](../plan/apple-vision-ios-backend.md).
+
+**Action item:** On Mac, fork `apple/plugins-for-godot`, add a `godothandvision/` plugin wrapping Vision framework's `VNDetectHumanHandPoseRequest`, benchmark against GDMP MediaPipe on same iPhone.
 
 ---
 

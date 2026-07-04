@@ -1,10 +1,12 @@
 # Plan: Apple Vision Framework iOS Backend
 
 **Date:** 2026-07-04
-**Status:** Planned (requires Mac)
+**Status:** Planned (requires Mac -- available)
 **Priority:** Medium (post-demo, when iOS support is needed)
 **Prerequisites:** Mac with Xcode, iOS device for testing, Apple Developer account
 **Research context:** [ecosystem-scan-round2.md](../research/ecosystem-scan-round2.md) section 6
+
+> **Major discovery:** Apple has an [official Godot plugin repo](https://github.com/apple/plugins-for-godot) (68 stars, MIT license) with GDExtension plugins for visionOS (RealityKit renderer) and spatial audio (PHASE). GodotRealityKit **already supports hand tracking** on visionOS/Vision Pro. Their Objective-C++ / Swift / GDExtension architecture is the exact template we'd follow for an iOS Vision framework hand tracking plugin.
 
 ---
 
@@ -27,6 +29,43 @@ Build a Godot iOS plugin that uses Apple's Vision framework (`VNDetectHumanHandP
 
 ---
 
+## Key Discovery: apple/plugins-for-godot
+
+**[github.com/apple/plugins-for-godot](https://github.com/apple/plugins-for-godot)** (68 stars, MIT license)
+
+Apple has an official repo with Godot plugins. Two plugins currently:
+
+1. **GodotRealityKit** -- renders Godot games with RealityKit on visionOS (Apple Vision Pro). Written in Objective-C++, C++, Swift, GDScript. Built as a **GDExtension** (not the old `.gdip` system).
+2. **PhaseGodot** -- Apple PHASE spatial audio framework for Godot (macOS, iOS, tvOS, visionOS).
+
+**Why this matters for us:**
+
+- **Hand tracking is already supported.** GodotRealityKit's feature table lists "Hand Tracking & Spatial Controllers" as supported in both RealityKit and CompositorServices modes. Apple has already solved the "bridge hand tracking to Godot" problem for visionOS.
+- **The architecture is our template.** Their GDExtension is built with Objective-C++ (bridging Godot's C++ API to Apple's Swift/ObjC frameworks). This is exactly the pattern we need for an iOS Vision framework plugin.
+- **It's a GDExtension, not `.gdip`.** This is the modern Godot plugin approach (same as GDMP). GDExtensions are more powerful, support cross-platform, and don't require the old iOS plugin export workflow.
+- **MIT licensed.** We can study, fork, or adapt their code freely.
+
+**What's different for our use case:**
+- GodotRealityKit's hand tracking is for **visionOS spatial hand tracking** (3D hands in space around Vision Pro). We need **2D hand pose from camera** on iPhone/iPad.
+- visionOS hand tracking uses ARKit's `HandTrackingProvider`. We need Vision framework's `VNDetectHumanHandPoseRequest` on iOS.
+- But the GDExtension structure, build system, Swift-to-Godot bridging, and project layout are all reusable.
+
+**Recommended approach:** Fork or study `apple/plugins-for-godot`, use their GDExtension scaffolding, and add a new `godothandvision/` plugin directory that wraps Vision framework's hand pose API for iOS.
+
+### Apple's Official Hand Pose Documentation
+
+**[developer.apple.com/documentation/vision/detecting-hand-poses-with-vision](https://developer.apple.com/documentation/vision/detecting-hand-poses-with-vision)**
+
+Apple provides a complete sample project for hand pose detection with Vision framework. Key details:
+- Uses `VNDetectHumanHandPoseRequest` for 2D hand pose from camera frames
+- Returns `VNHumanHandPoseObservation` with 21 recognized points per hand
+- Joint groups: `.all` (21 points), `.thumbFinger`, `.indexFinger`, `.middleFinger`, `.ringFinger`, `.littleFinger`
+- Each point has `.location` (normalized CGPoint) and `.confidence` (Float)
+- Supports `maximumHandCount` for multi-hand detection
+- Works with both live camera (`AVCaptureSession`) and static images
+
+---
+
 ## Architecture
 
 ```
@@ -46,31 +85,27 @@ The plugin replaces `MediaPipeBackend` on iOS. `AIInput` and everything above it
 
 ## Implementation Steps
 
-### Step 1: Scaffold the Godot iOS Plugin
+### Step 1: Scaffold the GDExtension (using Apple's template)
 
 **Where:** Mac with Xcode
-**Output:** `ios/plugins/VisionHandTracking/` directory
+**Output:** `addons/VisionHandTracking/` directory (GDExtension, not old `.gdip`)
 
-1. Clone the [Godot iOS plugin template](https://github.com/naithar/godot_ios_plugin)
-2. Create a new Xcode static library project: `VisionHandTracking`
-3. Add Godot engine headers as dependency (`HEADER_SEARCH_PATHS`)
-4. Create the `.gdip` config file:
+1. Clone [apple/plugins-for-godot](https://github.com/apple/plugins-for-godot) as reference
+2. Study the `godotrealitykit/` structure -- how they set up SCons/CMake, bridge Swift to Godot C++ API, register GDExtension classes
+3. Create a new directory `godothandvision/` following the same pattern
+4. Create the `.gdextension` manifest (similar to GDMP's `GDMP.gdextension`):
 
 ```ini
-[config]
-name="VisionHandTracking"
-binary="VisionHandTracking.xcframework"
-initialization="vision_hand_tracking_init"
-deinitialization="vision_hand_tracking_deinit"
+[configuration]
+entry_symbol = "vision_hand_tracking_init"
+compatibility_minimum = "4.6"
 
-[dependencies]
-linked=[]
-embedded=[]
-system=["Vision.framework", "AVFoundation.framework", "CoreVideo.framework"]
-capabilities=[]
-files=[]
-linker_flags=["-ObjC"]
+[libraries]
+ios.arm64 = "res://addons/VisionHandTracking/libVisionHandTracking.ios.a"
+macos.arm64 = "res://addons/VisionHandTracking/libVisionHandTracking.macos.dylib"
 ```
+
+5. Link against `Vision.framework`, `AVFoundation.framework`, `CoreVideo.framework`
 
 ### Step 2: Implement the Vision Hand Tracking Singleton
 
@@ -306,8 +341,10 @@ addon/
 ## Cross-References
 
 - [Ecosystem Scan Round 2](../research/ecosystem-scan-round2.md#6-apple-vision-framework-ios-native-hand-tracking----unproven-for-godot) -- initial research
-- [Godot iOS Plugin Docs](https://docs.godotengine.org/en/stable/tutorials/platform/ios/ios_plugin.html)
-- [Godot iOS Plugin Template](https://github.com/naithar/godot_ios_plugin)
+- [apple/plugins-for-godot](https://github.com/apple/plugins-for-godot) -- Apple's official Godot plugins (GDExtension template, hand tracking on visionOS)
+- [GodotRealityKit README](https://github.com/apple/plugins-for-godot/blob/main/godotrealitykit/README.md) -- RealityKit renderer with hand tracking support
 - [Apple VNDetectHumanHandPoseRequest](https://developer.apple.com/documentation/vision/vndetecthumanhandposerequest)
+- [Apple Hand Pose Detection Guide](https://developer.apple.com/documentation/vision/detecting-hand-poses-with-vision)
 - [Swift Hand Pose Tutorial](https://www.createwithswift.com/detecting-hand-pose-with-the-vision-framework/)
+- [Godot iOS Plugin Docs](https://docs.godotengine.org/en/stable/tutorials/platform/ios/ios_plugin.html) -- old `.gdip` system (we'll use GDExtension instead)
 - [ROADMAP.md](../../ROADMAP.md) -- Phase 3: Mobile
