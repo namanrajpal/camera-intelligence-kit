@@ -53,23 +53,47 @@ func _exit_tree() -> void:
 	_setup_game_cards()
 
 func _setup_game_cards() -> void:
-	# Fruit Chop card
-	var fruit_chop := _create_card(
-		"Fruit Chop",
-		"Slash fruits with your hands!\n2 players",
-		"res://scenes/fruit_chop/fruit_chop.tscn",
-		Color(0.9, 0.2, 0.1)
-	)
-	game_cards_container.add_child(fruit_chop)
+	var games := [
+		{
+			"title": "Fruit Chop",
+			"desc": "Slash fruits with\nyour hands!",
+			"scene": "res://scenes/fruit_chop/fruit_chop.tscn",
+			"color": Color(0.9, 0.2, 0.1),
+			"icon": "🍉",
+		},
+		{
+			"title": "Whack-a-Mole",
+			"desc": "Smash moles as\nthey pop up!",
+			"scene": "res://scenes/whack_a_mole/whack_a_mole.tscn",
+			"color": Color(0.6, 0.4, 0.2),
+			"icon": "🔨",
+		},
+		{
+			"title": "Bubble Pop",
+			"desc": "Pop bubbles before\nthey float away!",
+			"scene": "res://scenes/bubble_pop/bubble_pop.tscn",
+			"color": Color(0.2, 0.5, 0.9),
+			"icon": "🫧",
+		},
+		{
+			"title": "Hoops",
+			"desc": "Pinch to grab,\nswipe to shoot!",
+			"scene": "res://scenes/hoops/hoops.tscn",
+			"color": Color(0.9, 0.5, 0.0),
+			"icon": "🏀",
+		},
+		{
+			"title": "Hand Test",
+			"desc": "Raw hand tracking\nlandmark overlay",
+			"scene": "res://examples/hand_tracking_test/hand_tracking_test.tscn",
+			"color": Color(0.1, 0.6, 0.3),
+			"icon": "✋",
+		},
+	]
 
-	# Hand Tracking Test card
-	var hand_test := _create_card(
-		"Hand Test",
-		"Raw hand tracking\nlandmark overlay",
-		"res://examples/hand_tracking_test/hand_tracking_test.tscn",
-		Color(0.1, 0.6, 0.3)
-	)
-	game_cards_container.add_child(hand_test)
+	for g in games:
+		var card := _create_card(g.title, g.icon + "\n" + g.desc, g.scene, g.color)
+		game_cards_container.add_child(card)
 
 func _create_card(title: String, desc: String, scene_path: String, color: Color) -> GameCard:
 	var card := GameCard.new()
@@ -77,7 +101,7 @@ func _create_card(title: String, desc: String, scene_path: String, color: Color)
 	card.game_description = desc
 	card.game_scene_path = scene_path
 	card.game_color = color
-	card.custom_minimum_size = Vector2(300, 400)
+	card.custom_minimum_size = Vector2(200, 300)
 
 	# Card background style
 	var style := StyleBoxFlat.new()
