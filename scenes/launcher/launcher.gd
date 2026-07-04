@@ -28,18 +28,6 @@ func _ready() -> void:
 	_ai_input.hand_lost.connect(_on_hand_lost)
 	_ai_input.hand_gesture.connect(_on_gesture)
 
-func _exit_tree() -> void:
-	# Disconnect signals to prevent stale callbacks
-	if _ai_input:
-		if _ai_input.hand_tracked.is_connected(_on_hand_tracked):
-			_ai_input.hand_tracked.disconnect(_on_hand_tracked)
-		if _ai_input.hand_appeared.is_connected(_on_hand_appeared):
-			_ai_input.hand_appeared.disconnect(_on_hand_appeared)
-		if _ai_input.hand_lost.is_connected(_on_hand_lost):
-			_ai_input.hand_lost.disconnect(_on_hand_lost)
-		if _ai_input.hand_gesture.is_connected(_on_gesture):
-			_ai_input.hand_gesture.disconnect(_on_gesture)
-
 	# Start MediaPipe backend
 	backend = MediaPipeBackend.new()
 	add_child(backend)
@@ -51,6 +39,18 @@ func _exit_tree() -> void:
 
 	# Setup game cards
 	_setup_game_cards()
+
+func _exit_tree() -> void:
+	# Disconnect signals to prevent stale callbacks
+	if _ai_input:
+		if _ai_input.hand_tracked.is_connected(_on_hand_tracked):
+			_ai_input.hand_tracked.disconnect(_on_hand_tracked)
+		if _ai_input.hand_appeared.is_connected(_on_hand_appeared):
+			_ai_input.hand_appeared.disconnect(_on_hand_appeared)
+		if _ai_input.hand_lost.is_connected(_on_hand_lost):
+			_ai_input.hand_lost.disconnect(_on_hand_lost)
+		if _ai_input.hand_gesture.is_connected(_on_gesture):
+			_ai_input.hand_gesture.disconnect(_on_gesture)
 
 func _setup_game_cards() -> void:
 	var games := [
