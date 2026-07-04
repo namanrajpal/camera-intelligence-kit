@@ -13,25 +13,39 @@ var hand_cursors: Dictionary = {}  # hand_id -> HandCursor
 @onready var camera_viewport: SubViewport = $CameraViewport
 @onready var camera_texture_rect: TextureRect = $CameraViewport/CameraTextureRect
 
+var _ai_input: Node
+
 func _ready() -> void:
 	# Get AIInput singleton
-	var ai_input = get_node("/root/AIInput")
-	if ai_input == null:
+	_ai_input = get_node_or_null("/root/AIInput")
+	if _ai_input == null:
 		status_label.text = "ERROR: AIInput autoload not found"
 		return
 
 	# Connect AIInput signals
-	ai_input.hand_tracked.connect(_on_hand_tracked)
-	ai_input.hand_appeared.connect(_on_hand_appeared)
-	ai_input.hand_lost.connect(_on_hand_lost)
-	ai_input.hand_gesture.connect(_on_gesture)
+	_ai_input.hand_tracked.connect(_on_hand_tracked)
+	_ai_input.hand_appeared.connect(_on_hand_appeared)
+	_ai_input.hand_lost.connect(_on_hand_lost)
+	_ai_input.hand_gesture.connect(_on_gesture)
+
+func _exit_tree() -> void:
+	# Disconnect signals to prevent stale callbacks
+	if _ai_input:
+		if _ai_input.hand_tracked.is_connected(_on_hand_tracked):
+			_ai_input.hand_tracked.disconnect(_on_hand_tracked)
+		if _ai_input.hand_appeared.is_connected(_on_hand_appeared):
+			_ai_input.hand_appeared.disconnect(_on_hand_appeared)
+		if _ai_input.hand_lost.is_connected(_on_hand_lost):
+			_ai_input.hand_lost.disconnect(_on_hand_lost)
+		if _ai_input.hand_gesture.is_connected(_on_gesture):
+			_ai_input.hand_gesture.disconnect(_on_gesture)
 
 	# Start MediaPipe backend
 	backend = MediaPipeBackend.new()
 	add_child(backend)
 	backend.backend_ready.connect(_on_backend_ready)
 	backend.backend_error.connect(_on_backend_error)
-	backend.initialize(ai_input, camera_viewport, camera_texture_rect)
+	backend.initialize(_ai_input, camera_viewport, camera_texture_rect)
 
 	status_label.text = "Starting camera..."
 
@@ -65,11 +79,30 @@ func _create_card(title: String, desc: String, scene_path: String, color: Color)
 	card.game_color = color
 	card.custom_minimum_size = Vector2(300, 400)
 
+	# Card background style
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(color.r * 0.3, color.g * 0.3, color.b * 0.3, 0.85)
+	style.border_color = color
+	style.border_width_left = 3
+	style.border_width_right = 3
+	style.border_width_top = 3
+	style.border_width_bottom = 3
+	style.corner_radius_top_left = 16
+	style.corner_radius_top_right = 16
+	style.corner_radius_bottom_left = 16
+	style.corner_radius_bottom_right = 16
+	style.content_margin_left = 20
+	style.content_margin_right = 20
+	style.content_margin_top = 20
+	style.content_margin_bottom = 20
+	card.add_theme_stylebox_override("panel", style)
+
 	# Build card UI
 	var vbox := VBoxContainer.new()
 	vbox.name = "VBox"
 	vbox.anchors_preset = Control.PRESET_FULL_RECT
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 16)
 
 	var title_lbl := Label.new()
 	title_lbl.name = "Title"
@@ -90,7 +123,7 @@ func _create_card(title: String, desc: String, scene_path: String, color: Color)
 	progress.min_value = 0
 	progress.max_value = 100
 	progress.value = 0
-	progress.custom_minimum_size = Vector2(0, 20)
+	progress.custom_minimum_size = Vector2(0, 12)
 	progress.show_percentage = false
 	vbox.add_child(progress)
 
@@ -98,7 +131,7 @@ func _create_card(title: String, desc: String, scene_path: String, color: Color)
 	card.title_label = title_lbl
 	card.desc_label = desc_lbl
 	card.progress_bar = progress
-	card.modulate = color
+	card.modulate = Color.WHITE  # Don't tint the whole card, the style handles color
 	card.selected.connect(_on_card_selected.bind(card))
 
 	return card
@@ -110,25 +143,37 @@ func _on_backend_error(msg: String) -> void:
 	status_label.text = "ERROR: " + msg
 
 func _on_hand_appeared(hand: HandState) -> void:
+	if not is_inside_tree():
+		return
 	if not hand_cursors.has(hand.id):
 		var cursor := _create_cursor(hand.id)
 		hand_cursors[hand.id] = cursor
 		cursor_layer.add_child(cursor)
 
 func _on_hand_tracked(hand: HandState) -> void:
+	if not is_inside_tree():
+		return
 	# Update cursor
 	if hand_cursors.has(hand.id):
 		var cursor: HandCursor = hand_cursors[hand.id]
 		cursor.update_from_hand(hand, get_viewport_rect().size)
 
 	# Update hand count
-	var ai_input = get_node("/root/AIInput")
-	hand_count_label.text = "%d hands" % ai_input.get_hand_count()
+	hand_count_label.text = "%d hands" % _count_tracked_hands()
 
 func _on_hand_lost(hand_id: int) -> void:
+	if not is_inside_tree():
+		return
 	if hand_cursors.has(hand_id):
 		hand_cursors[hand_id].queue_free()
 		hand_cursors.erase(hand_id)
+
+func _count_tracked_hands() -> int:
+	var count := 0
+	for cursor in hand_cursors.values():
+		if cursor.visible:
+			count += 1
+	return count
 
 func _on_gesture(event: GestureEvent) -> void:
 	pass  # Gestures not used in launcher (hover-to-select instead)

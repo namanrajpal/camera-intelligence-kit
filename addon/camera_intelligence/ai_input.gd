@@ -32,7 +32,8 @@ signal status_changed(message: String)
 ## Smoothing alpha: 0.3 (smooth, laggy) to 0.8 (responsive, jittery).
 @export var smoothing_alpha: float = 0.5
 ## Mirror the camera horizontally (selfie mode).
-@export var mirror_camera: bool = true
+## Set false for external USB webcams, true for built-in laptop cameras.
+@export var mirror_camera: bool = false
 ## Maximum number of hands to track.
 @export var max_hands: int = 4
 
@@ -149,15 +150,18 @@ func process_hand_result(
 		# Update hand state from smoothed landmarks
 		hand.update_from_landmarks(smoothed, dt)
 
-		# Emit signals
-		if not was_tracked:
-			hand_appeared.emit(hand)
-		hand_tracked.emit(hand)
+		# Only emit signals after hand has been seen for a few frames
+		# This prevents ghost hands from fast movement
+		const MIN_FRAMES_TO_CONFIRM := 3
+		if hand.tracked_frames >= MIN_FRAMES_TO_CONFIRM:
+			if not was_tracked or hand.tracked_frames == MIN_FRAMES_TO_CONFIRM:
+				hand_appeared.emit(hand)
+			hand_tracked.emit(hand)
 
-		# Detect gestures
-		var events := _gesture_detector.detect(hand)
-		for event in events:
-			hand_gesture.emit(event)
+			# Detect gestures
+			var events := _gesture_detector.detect(hand)
+			for event in events:
+				hand_gesture.emit(event)
 
 	# Mark unseen hands as lost
 	for hand_id in _hands.keys():

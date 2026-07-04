@@ -90,7 +90,7 @@ func update_from_landmarks(raw_landmarks: Array[Vector3], dt: float) -> void:
 
 func mark_lost() -> void:
 	lost_frames += 1
-	if lost_frames > 10:  # ~10 frames grace period
+	if lost_frames > 5:  # ~5 frames grace period (~170ms at 30fps)
 		is_tracked = false
 		tracked_frames = 0
 		speed = 0.0
