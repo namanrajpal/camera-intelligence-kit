@@ -1,8 +1,8 @@
 # Strategic Pivot: YOLO26 Hand Keypoint Tracking
 
 **Date:** 2026-07-04
-**Status:** Planning
-**Worktree:** To be set up as a parallel OpenCode session
+**Status:** Training in progress (epoch 57/100, mAP50 pose 89.0%, mAP50 box 99.1%)
+**Parallel track:** RTMPose pretrained models being evaluated simultaneously (see [ecosystem-scan-round2.md](../research/ecosystem-scan-round2.md))
 
 ---
 
@@ -138,12 +138,36 @@ After validating YOLO26 on the stock dataset, create a custom dataset:
 
 ---
 
+## Training Progress (live)
+
+| Epoch | Box mAP50 | Box mAP50-95 | Pose mAP50 | Pose mAP50-95 | Status |
+|-------|-----------|--------------|------------|---------------|--------|
+| 25 | 98.9% | 85.6% | 84.1% | 69.3% | Checkpoint saved |
+| 52 | 99.1% | 88.0% | 88.8% | 74.6% | Checkpoint saved |
+| 57 | 99.1% | 88.2% | 89.0% | 74.9% | Currently training... |
+
+Training runs at ~2.5 it/s on RTX 3070 Ti, ~8 min/epoch. ETA for epoch 100: ~5-6 hours from start.
+
+---
+
+## Parallel Evaluation: RTMPose
+
+Discovered during [ecosystem scan round 2](../research/ecosystem-scan-round2.md) that RTMPose (mmpose, 7.7k stars) provides **pretrained hand keypoint ONNX models** that may outperform YOLO26 on inference speed:
+
+- RTMPose-t hand: 3ms CPU, 9ms Snapdragon 865
+- RTMPose-s hand: 4.5ms CPU, 14ms Snapdragon 865
+
+These are top-down models (need a hand detector first), but the total pipeline may still be faster than YOLO26's single-shot 40ms. Benchmark script at `tools/benchmark_models.py` will compare all three approaches.
+
+---
+
 ## Success Criteria
 
-- [ ] YOLO26n-pose trained on hand-keypoints, mAP50 > 80%
+- [ ] YOLO26n-pose trained on hand-keypoints, mAP50 > 80% -- DONE (89.0% at epoch 57)
 - [ ] Detects 4+ hands in a single frame reliably
 - [ ] No ID swaps when hands cross (handled by Hungarian matching in AIInput)
 - [ ] Exported to ONNX, runs at >25fps on CPU
+- [ ] Benchmarked against RTMPose and MediaPipe
 - [ ] Integrated into Godot via one of the options above
 
 ---
@@ -152,8 +176,9 @@ After validating YOLO26 on the stock dataset, create a custom dataset:
 
 ```
 tools/
-  train_hand_model.py       # Training script
-  validate_hand_model.py    # Webcam validation script
+  train_hand_model.py       # Training script (DONE)
+  validate_hand_model.py    # Webcam validation script (DONE)
+  benchmark_models.py       # Compare YOLO26 vs RTMPose vs MediaPipe
   convert_annotations.py    # MediaPipe -> YOLO format converter
 models/
   hand-yolo26n.onnx         # Exported model (gitignored)
@@ -161,3 +186,9 @@ models/
 docs/plan/
   yolo26-hand-tracking-pivot.md  # This file
 ```
+
+## Cross-References
+
+- [Initial SOTA Survey](../research/edge-hand-tracking-sota-2026.md) -- why YOLO26 over MediaPipe
+- [Ecosystem Scan Round 2](../research/ecosystem-scan-round2.md) -- RTMPose discovery, gesture classifier pattern
+- [Gesture Classifier Plan](./gesture-classifier.md) -- ML gesture classification (deferred)

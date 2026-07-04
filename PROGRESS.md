@@ -5,6 +5,142 @@
 
 ---
 
+## 2026-07-04 — Deep Research: Edge Hand Tracking, YOLO26 Training, Ecosystem Scan
+
+### Research goal
+
+Best on-device edge AI hand tracking for multi-person hack-and-slash gameplay in Godot, targeting both laptop and mobile devices. Full research documented in [docs/research/](docs/research/) and [docs/plan/](docs/plan/).
+
+### What was done
+
+**SOTA survey (round 1):**
+- Analyzed MediaPipe Hands limitations for multi-person (two-stage pipeline, ID swaps on crossing, tracking-dependent)
+- Identified YOLO26n-pose as single-shot alternative (2.9M params, 21 hand keypoints, exports everywhere)
+- Found 1-Euro filter as strictly superior smoothing for hand tracking (speed-adaptive, CHI 2012)
+- Mapped edge runtime landscape: ONNX Runtime, ExecuTorch, LiteRT, NCNN
+- Published: [`docs/research/edge-hand-tracking-sota-2026.md`](docs/research/edge-hand-tracking-sota-2026.md)
+
+**Ecosystem scan (round 2):**
+- Discovered **RTMPose** (mmpose, 7.7k stars): pretrained hand ONNX models, 200+ FPS CPU, 9-14ms on Snapdragon 865, C++ ONNX Runtime examples, Android ncnn examples
+- Discovered **Kazuhito00's gesture classifier** (750 stars): keypoint MLP + point history LSTM pattern for gesture classification on top of any hand tracker
+- Found **NVIDIA trt_pose_hand** (233 stars): ResNet18 hand pose + SVM gesture on Jetson
+- Found **HandLocator**: YOLOv8 + ONNX Runtime CUDA in C++ -- reference for our GDExtension
+- Published: [`docs/research/ecosystem-scan-round2.md`](docs/research/ecosystem-scan-round2.md)
+
+**YOLO26n-pose training (in progress):**
+- Set up Python venv with ultralytics + PyTorch CUDA on RTX 3070 Ti
+- Training on Ultralytics Hand Keypoints dataset (26,768 images, 21 keypoints, 369MB auto-download)
+- Training script: `tools/train_hand_model.py`
+- Validation script: `tools/validate_hand_model.py`
+- Progress at epoch 57/100:
+  - Box mAP50: **99.1%** (hand detection near-perfect)
+  - Pose mAP50: **89.0%** (keypoint accuracy, up from 84.1% at epoch 25)
+  - Pose mAP50-95: **74.9%** (strict keypoint accuracy)
+- 384 images (2%) skipped due to out-of-bounds keypoint labels in dataset -- normal, no impact
+- Checkpoints saved every 10 epochs + best.pt + last.pt in `runs/pose/hand-yolo26n/weights/`
+
+**Gesture classifier plan (documented for later):**
+- Architecture documented: static pose MLP + dynamic motion LSTM/1D-CNN (Kazuhito00 pattern)
+- Data collection plan: built-in recording mode during gameplay
+- Target gestures: idle, slash_right, slash_left, slash_down, slash_up, stab, circular
+- Published: [`docs/plan/gesture-classifier.md`](docs/plan/gesture-classifier.md)
+
+**Infrastructure:**
+- Added `.gdignore` to `runs/` and `.venv/` (Godot was trying to import YOLO training artifacts)
+- Added `runs/`, `.venv/`, `datasets/`, `*.pt` to `.gitignore`
+
+### Technical decisions made
+- **Evaluate RTMPose pretrained models before committing to YOLO26-only**: RTMPose hand models are 10-20x faster per-inference (top-down on cropped hand region vs full-frame). May be the better production path.
+- **Gesture classifier deferred to pre/post-demo, not abandoned**: Rule-based works for Fruit Chop. ML classifier adds slash direction, custom gestures. Architecture documented now so it's ready when we need it.
+- **Benchmark all three approaches**: MediaPipe (current) vs YOLO26 (training) vs RTMPose (pretrained). Pick winner based on latency, accuracy, multi-hand reliability.
+
+### What's next
+- Finish YOLO26 training (epoch 57 → 100, ~3 more hours)
+- Download and benchmark RTMPose hand ONNX models
+- Run comparative benchmarks (tools/benchmark_models.py)
+- Export YOLO26 to ONNX when training completes
+- Pick winner model for production
+
+---
+
+## 2026-07-04 — Fruit Chop Game Complete, Launcher Polished, Latency Improvements
+
+### What was done
+
+**Fruit Chop game (complete, playable e2e):**
+- Built `scenes/fruit_chop/fruit_chop.gd` (729 lines) — full game controller
+- Built `scenes/fruit_chop/fruit_item.gd` (157 lines) — individual fruit/bomb with parabolic physics, slice animation, splash VFX
+- Built `scenes/fruit_chop/fruit_chop.tscn` — scene tree with camera background, game layer, UI, cursor layer
+- 6 fruit types: Watermelon, Orange, Lime, Banana, Pineapple (2pts), Grapes (3pts)
+- Bomb mechanics: 12% spawn chance, -5 penalty, red screen flash, combo reset
+- Combo system: chain slashes within 0.8s, multiplier up to 8x, animated "COMBO!" label
+- Per-frame slash detection: hand speed > 0.6 + proximity < 80px = slice (no reliance on gesture events for responsiveness)
+- Slash VFX: fruit halves tumble apart with gravity, juice splash expands and fades, floating score popups
+- Colored slash trails: Line2D per hand with gradient fade, width scales with hand speed
+- Progressive difficulty: spawn interval 2.2s → 0.5s, wave size 1-2 → 3-5 fruits
+- 60-second game timer with flashing red pulse in final 10 seconds
+- 3-2-1-CHOP countdown with scale-bounce animations
+- Game Over screen: final score, stats (sliced/missed/best combo), auto-returns to launcher in 6 seconds
+- Camera + MediaPipe backend setup (same pattern as launcher, each scene owns its backend)
+- Hand cursors with per-player colors (reuses HandCursor from launcher)
+
+**AIInput singleton (the abstraction layer):**
+- `addon/camera_intelligence/ai_input.gd` — signals: `hand_tracked`, `hand_appeared`, `hand_lost`, `hand_gesture`, `status_changed`
+- `addon/camera_intelligence/hand_state.gd` — per-hand data: screen_position, velocity, speed, 21 landmarks, fingertip positions, pinch_distance, handedness
+- `addon/camera_intelligence/gesture_detector.gd` — swipe detection (speed + distance + cooldown), pinch detection (hysteresis state machine, 3-frame confirm)
+- `addon/camera_intelligence/gesture_event.gd` — gesture data: name, phase, position, direction, speed, hand_id
+- `addon/camera_intelligence/mediapipe_backend.gd` — camera management, model download/cache, frame processing, format handling (RGB/YCbCr/YUV420)
+- Registered as Godot autoload at `/root/AIInput`
+
+**1-Euro filter (replaced EMA smoothing):**
+- `addon/camera_intelligence/smoothing.gd` — LandmarkSmoother with per-landmark 1-Euro filters (21 x Vector3)
+- Speed-adaptive: low cutoff at rest (removes jitter), high cutoff during fast slashes (minimizes lag)
+- Parameters: `mincutoff=1.0`, `beta=0.007` — tunable at runtime via `AIInput.set_smoothing()`
+
+**Latency fixes (5 optimizations):**
+- Downscale inference frames to 320x240 (smaller image = faster MediaPipe)
+- Frame throttling to avoid queueing
+- Aggressive 1-Euro filter tuning for fast motion
+- Fingertip tracking for slash detection
+- Reduced MediaPipe confidence thresholds
+
+**Camera feed switching fix:**
+- `mediapipe_backend.gd` now hot-swaps to preferred feed (NexiGo/USB/Webcam) when it arrives after initial feed is already open
+- Previous behavior: early return if any feed was already open → stuck on built-in HD Camera
+- New behavior: `_on_feed_added` checks if arriving feed is preferred, `_switch_to_feed` disconnects old and opens new
+
+**Launcher UI ("Play With Air" branding):**
+- `scenes/launcher/launcher.gd` — 5 game cards (Fruit Chop, Whack-a-Mole, Bubble Pop, Hoops, Hand Test), hover-to-select with progress bar fill
+- `scenes/launcher/game_card.gd` — smooth scale lerp, animated border glow (3→8px), background brightens on hover
+- `scenes/launcher/hand_cursor.gd` — programmatic ring + center dot (56px), per-player color, speed-reactive pulse
+- Hand logo (`logo_hand_transparent.png`) + sticker title (`title_play_with_air.png`) — generated via gpt-image-2, white backgrounds removed with Pillow
+- Fonts: Fredoka (headlines), Nunito (body) — variable TTFs
+- Design language: Midnight backgrounds, Electric Coral/Ocean/Sunshine/Snow/Mist palette
+
+**Asset generation (37 PNGs):**
+- `tools/generate_fruit_chop_assets.py` — 20 game assets: 6 whole fruits, 5 halves, 1 bomb, 6 splashes, 1 star, 1 score popup
+- `tools/generate_ui_assets.py` — 20 UI assets: 5 game icons, 3 cursors, 4 buttons, 2 decorations, branding
+- All generated via OpenAI image API (gpt-image-1 for game assets, gpt-image-2 medium for UI)
+- White background removal via Pillow pixel loop (brightness > 245 → transparent)
+
+**Research:**
+- `docs/research/edge-hand-tracking-sota-2026.md` — comprehensive SOTA survey: YOLO26-pose hand keypoints, 1-Euro filter, top-down person-to-hand pipeline, edge runtime landscape (ONNX/ExecuTorch/LiteRT/NCNN), priority roadmap for demo and post-demo
+
+### Technical decisions made
+- **Per-frame proximity slash detection over gesture events**: The GestureDetector's swipe events have 300ms cooldown — too slow for fruit ninja. Instead, each frame checks hand speed + distance to fruits directly. Instant, responsive, can slice multiple fruits per swipe.
+- **Each scene owns its MediaPipeBackend**: When `change_scene_to_file` is called, the old scene (and its backend) is freed. The new scene creates its own backend. AIInput persists as an autoload.
+- **Player-facing brand is "Play With Air"**: Not "Camera Intelligence Kit" (that's the SDK name).
+- **Programmatic hand cursor (not image sprite)**: Generated hand images had white backgrounds that looked bad over camera feed. Ring + dot drawn with StyleBoxFlat is cleaner.
+- **1-Euro filter over EMA**: Speed-adaptive smoothing — nearly zero lag on fast slashes, good jitter removal at rest.
+
+### What's next
+- Polish Fruit Chop for demo (sound effects, screen shake, particle juice)
+- Two-player scoring and player assignment
+- Android export and mobile testing
+- Demo dry run (July 11-12)
+
+---
+
 ## 2026-07-04 — Foundation: GDMP + Hand Tracking Working
 
 ### What was done
@@ -38,11 +174,6 @@
 - **CPU delegate for now**: MediaPipe GPU delegate only available on Android/iOS/Linux. CPU is reliable cross-platform and fast enough for hand tracking.
 - **GL Compatibility renderer**: Widest platform support (Android, iOS, Web, desktop).
 
-### What's next
-- Build AIInput singleton (the abstraction layer)
-- Build Fruit Chop game
-- Test Android export
-
 ---
 
 ## Project Stats
@@ -54,4 +185,7 @@
 | Platforms with binaries | Windows, Android, iOS, macOS, Linux, Web |
 | Hand tracking | Up to 4 hands, 21 landmarks each, ~30fps |
 | Model size | ~10MB (hand_landmarker float16) |
-| Lines of GDScript | ~300 |
+| Lines of GDScript | ~2,500 |
+| Game assets | 37 PNGs (fruit, bomb, splash, UI, branding) |
+| Games playable | 1 (Fruit Chop) + 1 test scene (Hand Test) |
+| Custom fonts | 2 (Fredoka, Nunito) |
