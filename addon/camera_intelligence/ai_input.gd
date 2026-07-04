@@ -29,8 +29,10 @@ signal status_changed(message: String)
 
 # ── Configuration ──────────────────────────────────────────
 
-## Smoothing alpha: 0.3 (smooth, laggy) to 0.8 (responsive, jittery).
-@export var smoothing_alpha: float = 0.5
+## 1-Euro filter: cutoff frequency at rest. Lower = less jitter but more lag.
+@export var smoothing_mincutoff: float = 1.0
+## 1-Euro filter: speed coefficient. Higher = less lag during fast slashes.
+@export var smoothing_beta: float = 0.007
 ## Mirror the camera horizontally (selfie mode).
 ## Set false for external USB webcams, true for built-in laptop cameras.
 @export var mirror_camera: bool = false
@@ -77,10 +79,14 @@ func get_hand_count() -> int:
 			count += 1
 	return count
 
-func set_smoothing(alpha: float) -> void:
-	smoothing_alpha = clampf(alpha, 0.1, 1.0)
+func set_smoothing(mincutoff: float = 1.0, beta: float = 0.007) -> void:
+	## Adjust 1-Euro filter parameters at runtime.
+	## mincutoff: lower = smoother at rest (try 0.5 - 3.0)
+	## beta: higher = less lag during fast motion (try 0.001 - 0.05)
+	smoothing_mincutoff = maxf(mincutoff, 0.01)
+	smoothing_beta = maxf(beta, 0.0)
 	for smoother in _smoothers.values():
-		smoother.alpha = smoothing_alpha
+		smoother.set_params(smoothing_mincutoff, smoothing_beta)
 
 func set_swipe_sensitivity(min_speed: float, min_distance: float, cooldown_ms: int) -> void:
 	_gesture_detector.swipe_min_speed = min_speed
@@ -129,13 +135,13 @@ func process_hand_result(
 		if not _hands.has(hand_id):
 			_hands[hand_id] = HandState.new()
 			_hands[hand_id].id = hand_id
-			_smoothers[hand_id] = LandmarkSmoother.new(smoothing_alpha)
+			_smoothers[hand_id] = LandmarkSmoother.new(smoothing_mincutoff, smoothing_beta)
 
 		var hand: HandState = _hands[hand_id]
 		var smoother: LandmarkSmoother = _smoothers[hand_id]
 
-		# Smooth landmarks
-		var smoothed := smoother.smooth(raw_positions)
+		# Smooth landmarks (1-Euro filter, speed-adaptive)
+		var smoothed := smoother.smooth(raw_positions, dt)
 
 		# Update handedness
 		if i < handedness_array.size():
