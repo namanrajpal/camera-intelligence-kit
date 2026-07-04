@@ -2,6 +2,7 @@
 .env
 .env.*
 *.key
+keys.md
 auth.json
 
 # Godot
@@ -34,6 +35,13 @@ addons/CameraServerExtension/x86_32/
 addons/CameraServerExtension/x86_64/
 addons/CameraServerExtension/wasm32/
 addons/CameraServerExtension/*.xcframework/
+
+# Python / ML training (YOLO, venv, datasets — large, local-only)
+.venv/
+runs/
+datasets/
+*.pt
+wandb/
 
 # OS / editor
 .DS_Store
