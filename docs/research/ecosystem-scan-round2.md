@@ -144,21 +144,30 @@ Existing 3D Fruit Slicer game using hand tracking:
 
 ---
 
-### 6. Apple Vision Framework (iOS-native hand tracking)
+### 6. Apple Vision Framework (iOS-native hand tracking) -- UNPROVEN FOR GODOT
 
 **[createwithswift.com/detecting-hand-pose-with-the-vision-framework](https://www.createwithswift.com/detecting-hand-pose-with-the-vision-framework/)**
 
-Apple's Vision framework provides **built-in hand pose detection** on iOS/macOS with no model deployment needed:
+Apple's Vision framework provides built-in hand pose detection on iOS/macOS:
 
 - 21 keypoints per hand (4 per finger + wrist) -- same topology as MediaPipe
-- Runs on Apple Neural Engine (ANE) -- extremely fast, hardware-optimized
+- Runs on Apple Neural Engine (ANE) -- hardware-optimized
 - Available since iOS 14 / macOS 11
-- No model file to ship, no ONNX/CoreML conversion needed
+- No model file to ship
 - API returns `VNHumanHandPoseObservation` with joint positions and confidence
 
-**Relevance for us:** On iOS, we may not need YOLO26 or RTMPose at all. The Vision framework is Apple's own hand tracker running on their neural engine -- it will be faster and more battery-efficient than anything we ship. The Godot integration path would be a platform-specific native plugin that calls Vision API and feeds results into AIInput.
+**Feasibility check for Godot:**
 
-**Action item:** When building iOS support, evaluate Vision framework as the iOS hand tracking backend alongside or instead of ONNX Runtime.
+- **Nobody has done this.** GitHub search for "godot vision framework hand ios" returns **zero repositories**. This is completely uncharted territory.
+- **Godot iOS plugin system exists** ([docs](https://docs.godotengine.org/en/stable/tutorials/platform/ios/ios_plugin.html)) via `.gdip` files + Objective-C static libraries. You could write a native iOS plugin that wraps Vision framework's `VNDetectHumanHandPoseRequest` and exposes landmarks via `Engine.get_singleton("HandVision")`.
+- **Requires macOS + Xcode** to build. We don't have a Mac in our current environment.
+- **Not a drop-in replacement.** Would need: Objective-C wrapper around Vision API, `.gdip` config, integration with CameraServer or AVCaptureSession, bridge to AIInput's signal system. Significant native iOS development.
+- **Performance is unverified** for our use case. Vision framework is optimized for Apple hardware, but we don't know the actual FPS for multi-hand tracking at game speeds. Marketing says "real-time" but no public benchmarks exist for fast-motion hand tracking.
+- **GDMP already supports iOS.** We already have MediaPipe hand tracking binaries for iOS via the GDMP plugin. Vision framework would only be worth it if it's measurably faster/more reliable than MediaPipe on the same device.
+
+**Verdict:** Interesting future option but not actionable now. Requires Mac hardware, native iOS development, and benchmarking we can't do without a device. Filed as a long-term research item, not a near-term path.
+
+**Action item (deferred):** If/when we have a Mac, prototype a minimal Vision framework iOS plugin and benchmark against GDMP MediaPipe on the same device.
 
 ---
 
