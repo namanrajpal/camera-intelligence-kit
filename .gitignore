@@ -1,0 +1,33 @@
+# Secrets — never commit
+.env
+.env.*
+*.key
+auth.json
+
+# Godot
+.godot/
+.import/
+export.cfg
+export_presets.cfg
+*.translation
+
+# Node / browser bridge
+node_modules/
+dist/
+build/
+*.log
+npm-debug.log*
+
+# ML models / weights (large binaries — track via LFS or release assets if needed)
+*.onnx
+*.tflite
+*.pte
+*.task
+*.bin
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.tmp
