@@ -1,0 +1,37 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Camera Intelligence Kit"
+config/description="Kinect-style camera controls for Godot, powered by modern on-device AI."
+run/main_scene="res://scenes/launcher/launcher.tscn"
+config/features=PackedStringArray("4.6")
+config/icon="res://icon.svg"
+
+[autoload]
+
+MediaPipeExternalFiles="*uid://d3neb5cwnsvqs"
+GDMPAndroid="*uid://ccp6gbqbg33bg"
+AIInput="*res://addon/camera_intelligence/ai_input.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/CameraServerExtension/plugin.cfg", "res://addons/GDMP/plugin.cfg")
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"

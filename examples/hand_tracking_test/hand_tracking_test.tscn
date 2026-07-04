@@ -1,0 +1,77 @@
+[gd_scene format=3 uid="uid://ccd5uot6khdps"]
+
+[ext_resource type="Script" uid="uid://bxsyqhmjm3hvk" path="res://examples/hand_tracking_test/hand_tracking_test.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://d17goaboxu38j" path="res://examples/hand_tracking_test/landmark_canvas.gd" id="2_canvas"]
+
+[node name="HandTrackingTest" type="Control" unique_id=1738574973]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=706258287]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.1, 0.15, 1)
+
+[node name="CameraPreview" type="TextureRect" parent="." unique_id=1791329303]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="LandmarkCanvas" type="Control" parent="." unique_id=1058343225]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_canvas")
+
+[node name="StatusLabel" type="Label" parent="." unique_id=1107863012]
+layout_mode = 1
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 500.0
+offset_bottom = 120.0
+text = "Initializing..."
+
+[node name="FPSLabel" type="Label" parent="." unique_id=8924768]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -200.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 48.0
+grow_horizontal = 0
+text = "FPS: --"
+horizontal_alignment = 2
+
+[node name="CameraViewport" type="SubViewport" parent="." unique_id=1996057231]
+transparent_bg = true
+handle_input_locally = false
+size = Vector2i(640, 480)
+render_target_update_mode = 4
+
+[node name="CameraTextureRect" type="TextureRect" parent="CameraViewport" unique_id=639865343]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 5

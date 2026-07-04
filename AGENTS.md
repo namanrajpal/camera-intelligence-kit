@@ -1,8 +1,17 @@
 # Godot Camera Intelligence Kit
 
-**Positioning:** "Kinect-style camera controls for Godot, powered by modern on-device AI, running on desktop, web, and mobile."
+**Positioning:** "Open-source Nex Playground — on-device camera AI that turns body/hand tracking into game events for Godot, running on phones and tablets with no custom hardware."
 
-**Source of truth:** [`INITIAL_PROMPT.md`](./INITIAL_PROMPT.md) — the full brief. Read it before major work. Do not edit it except to append dated addenda.
+**Source of truth:** [`INITIAL_PROMPT.md`](./INITIAL_PROMPT.md) — the original ChatGPT brainstorm. Read it for the full vision. Do not edit it except to append dated addenda.
+
+## Key documents
+
+| File | Purpose | When to update |
+|---|---|---|
+| [`INITIAL_PROMPT.md`](./INITIAL_PROMPT.md) | Original vision/brief. Permanent. | Never edit, only append addenda. |
+| [`ROADMAP.md`](./ROADMAP.md) | What we plan to build, in priority order. | When priorities shift or milestones are added. |
+| [`PROGRESS.md`](./PROGRESS.md) | What was actually built, with dates and decisions. | After every major commit or feature. |
+| [`AGENTS.md`](./AGENTS.md) | Agent context (this file). | When conventions or architecture change. |
 
 ## The wedge
 
@@ -16,18 +25,49 @@ Backends (MediaPipe / ONNX Runtime / ExecuTorch) are swappable implementation de
 
 ## Current phase
 
-**MVP 0 — prior-art research & repo audit.** Nothing built yet. Next: audit existing Godot ML integrations (see INITIAL_PROMPT.md "MVP 0"), then MVP 1 = browser MediaPipe Hands → WebSocket JSON → Godot `AIInput` addon → hand-cursor demo with pinch grab/release.
+**MVP 1 — hand tracking foundation built.** GDMP (MediaPipe GDExtension) is integrated and working on desktop with multi-hand tracking. Camera feeds via CameraServerExtension. Next: build the AIInput abstraction layer, then Fruit Chop game, then Android export.
 
-Do **not** jump to native GDExtension or multiple backends first. One delightful vertical slice.
+**Demo target:** AI Tinkerers Seattle, July 13 2026.
+**First game:** Fruit Chop (two-player hand-slash fruit ninja).
 
-## Conventions (evolving)
+## Architecture (as built)
 
-- Godot 4, GDScript for the addon. Browser bridge in TypeScript.
-- Freeze the MVP event schema early (JSON over WebSocket) — see INITIAL_PROMPT.md "Preferred MVP event schema".
+```
+Godot 4.6.2 Project
+├── addons/
+│   ├── GDMP/                        # MediaPipe GDExtension (all platforms)
+│   │   └── libs/                    # Native binaries (gitignored, ~400MB)
+│   └── CameraServerExtension/       # Native webcam drivers for Windows/iOS
+├── addon/
+│   └── camera_intelligence/         # AIInput singleton (TODO)
+├── examples/
+│   └── hand_tracking_test/          # Working: camera → MediaPipe → landmarks
+└── project.godot
+```
+
+**Camera pipeline:**
+```
+Webcam → CameraServerExtension → CameraTexture → SubViewport → Image
+→ MediaPipeImage → MediaPipeHandLandmarker (C++ native, async)
+→ result_callback → 21 landmarks per hand, up to 4 hands
+```
+
+**GDMP binaries:** Not from the v0.6 release (built for godot-cpp 4.4). Sourced from [GDMP-demo](https://github.com/j20001970/GDMP-demo) master, which CI-builds from GDMP master against godot-cpp 4.6-stable. To refresh: `git clone --depth 1 https://github.com/j20001970/GDMP-demo.git` and copy `project/addons/GDMP/` and `project/addons/CameraServerExtension/`.
+
+## Conventions
+
+- Godot 4.6, GDScript for the addon and game code.
+- GL Compatibility renderer (widest platform support).
+- GDMP native libs are **gitignored** (`addons/GDMP/libs/`, `addons/CameraServerExtension/`). Cloned from GDMP-demo for setup.
+- MediaPipe models auto-download from Google Cloud Storage on first run, cached in `user://`.
 - Normalize all backend output into shared types; keep backend specifics out of gameplay code.
 - Every gesture uses debounce/hysteresis/state machine — no one-frame firing.
 - Calibration + debug overlay are first-class, not afterthoughts.
 
 ## Environment
 
-Windows, PowerShell 5.1. No `&&` chaining. This repo lives under the workspace root; see `../AGENTS.md` for the agent stack (OpenChamber / Telegram / TUI all share one `opencode serve`).
+- Windows 11, PowerShell 5.1. No `&&` chaining.
+- Godot 4.6.2 at `C:\Users\naman\Downloads\Godot_v4.6.2-stable_win64.exe\Godot_v4.6.2-stable_win64.exe`
+- GPU: NVIDIA GeForce RTX 3070 Ti Laptop
+- Webcams: HD Camera (built-in), NexiGo N660 FHD (external, preferred)
+- This repo lives under the workspace root; see `../AGENTS.md` for the agent stack.

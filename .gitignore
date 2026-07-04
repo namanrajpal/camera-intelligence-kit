@@ -25,6 +25,16 @@ npm-debug.log*
 *.task
 *.bin
 
+# GDMP native binaries (large, platform-specific — clone from GDMP-demo)
+addons/GDMP/libs/
+# CameraServerExtension native binaries (same source)
+addons/CameraServerExtension/arm32/
+addons/CameraServerExtension/arm64/
+addons/CameraServerExtension/x86_32/
+addons/CameraServerExtension/x86_64/
+addons/CameraServerExtension/wasm32/
+addons/CameraServerExtension/*.xcframework/
+
 # OS / editor
 .DS_Store
 Thumbs.db
