@@ -29,17 +29,20 @@ import cv2
 CORPUS_DIR = Path(__file__).resolve().parent.parent / "corpus"
 
 # name -> (duration_s, people, instructions)
+# IMPORTANT: "people" = how many people must be IN FRAME. For 1-person clips,
+# everyone else must step completely OUT of camera view (dropout metric counts
+# expected people — an extra person in the background breaks the math).
 CLIP_PLAN = {
-    "idle_1m":      (15, 1, "Stand 1m away. Hold BOTH hands up at chest height, KEEP STILL."),
-    "idle_2m":      (15, 1, "Stand 2m away. Hold BOTH hands up at chest height, KEEP STILL."),
-    "idle_3m":      (15, 1, "Stand 3m away. Hold BOTH hands up at chest height, KEEP STILL."),
-    "slash_1m":     (20, 1, "Stand 1m away. SLASH aggressively with both hands — fast, erratic, like Fruit Ninja."),
-    "slash_2m":     (20, 1, "Stand 2m away. SLASH aggressively with both hands — fast, erratic, like Fruit Ninja."),
-    "slash_3m":     (20, 1, "Stand 3m away. SLASH aggressively with both hands — fast, erratic, like Fruit Ninja."),
-    "two_idle_2m":  (15, 2, "TWO people at 2m, side by side. Hands up at chest height, KEEP STILL."),
-    "two_slash_2m": (20, 2, "TWO people at 2m. Both SLASH aggressively at the same time."),
-    "two_cross_2m": (30, 2, "TWO people at 2m. Cross arms into each other's space and SWAP POSITIONS ~5 times."),
-    "walkon_2m":    (15, 1, "Start OUT of frame. Walk in at 2m, slash for 5s, walk out. Repeat once."),
+    "idle_1m":      (15, 1, "ONLY 1 person in frame (others step OUT of view). Stand 1m away. BOTH hands up at chest height, KEEP STILL."),
+    "idle_2m":      (15, 1, "ONLY 1 person in frame. Stand 2m away. BOTH hands up at chest height, KEEP STILL."),
+    "idle_3m":      (15, 1, "ONLY 1 person in frame. Stand 3m away. BOTH hands up at chest height, KEEP STILL."),
+    "slash_1m":     (20, 1, "ONLY 1 person in frame. Stand 1m away. SLASH aggressively with both hands — fast, erratic, like Fruit Ninja."),
+    "slash_2m":     (20, 1, "ONLY 1 person in frame. Stand 2m away. SLASH aggressively with both hands — fast, erratic."),
+    "slash_3m":     (20, 1, "ONLY 1 person in frame. Stand 3m away. SLASH aggressively with both hands — fast, erratic."),
+    "two_idle_2m":  (15, 2, "BOTH people in frame at 2m, side by side. Hands up at chest height, KEEP STILL."),
+    "two_slash_2m": (20, 2, "BOTH people in frame at 2m. Both SLASH aggressively at the same time."),
+    "two_cross_2m": (30, 2, "BOTH people in frame at 2m. Cross arms into each other's space and SWAP POSITIONS ~5 times."),
+    "walkon_2m":    (15, 1, "Start with NOBODY in frame. ONE person walks in at 2m, slashes 5s, walks out. Repeat once."),
 }
 
 
@@ -136,6 +139,7 @@ def main():
     ap.add_argument("--camera", type=int, default=0)
     ap.add_argument("--clip", type=str, help="record a single clip by name")
     ap.add_argument("--list", action="store_true", help="show clip plan + status")
+    ap.add_argument("--resume", action="store_true", help="skip clips already recorded")
     args = ap.parse_args()
 
     if args.list:
@@ -148,6 +152,9 @@ def main():
         record_clip(args.clip, args.camera)
         return
     for name in CLIP_PLAN:
+        if args.resume and (CORPUS_DIR / f"{name}.mp4").exists():
+            print(f"skipping {name} (already recorded)")
+            continue
         record_clip(name, args.camera)
     status()
 
