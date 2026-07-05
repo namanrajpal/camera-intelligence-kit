@@ -5,6 +5,47 @@
 
 ---
 
+## 2026-07-04 — YOLO26 Hand Training Complete; Strategy Pivot to Body Pose; Benchmark Design
+
+### What was done
+
+**YOLO26n-pose hand training COMPLETE (100 epochs):**
+- Final: Box mAP50 **99.2%** / mAP50-95 89.1%, Pose mAP50 **90.3%** / mAP50-95 77.1%
+- Inference: 2.9ms/image on RTX 3070 Ti
+- Exported to ONNX: `runs/pose/hand-yolo26n/weights/best.onnx` (12.3 MB, opset 20)
+
+**Strategy pivot — hand as pointer, not skeleton:**
+- Realized the games need whole-hand position + velocity + player identity, NOT 21-point finger articulation
+- Documented in [`docs/research/gameplay-requirements.md`](docs/research/gameplay-requirements.md)
+- Nex Playground's own published specs confirm: they track **18 body points** (not hand skeletons) for the same game catalog (Fruit Ninja, Sword Slash, Whack-a-Mole) — [`docs/research/nex-playground-analysis.md`](docs/research/nex-playground-analysis.md)
+- Active Arcade (Nex's iPhone app) is the existence proof for phone-based tracking: prop phone up, stand 2m back, "make sure it sees your upper body"
+- New primary candidate: **YOLO26n-pose body (pretrained COCO)** — wrists (kpts 9,10) as hand positions, person detection = free player identity
+
+**Benchmark methodology designed (pre-registered):**
+- Hypotheses H1-H4 (body pose beats hand detectors under fast motion / at distance)
+- Recorded test corpus (~10 clips) instead of live webcam — fair, reproducible, publishable
+- Metrics: latency P50/P95/P99, dropout rate + burst length, identity swaps/min, jitter, range 1-3m
+- Common wrist-point evaluation across all models
+- Gates (P95 ≤ 33ms per Ultralytics 30fps guidance, dropout ≤ 5% @ 2m) → lexicographic ranking
+- Deliverable: blog post + open benchmark repo
+
+**Apple ecosystem findings:**
+- Apple has an official Godot plugin repo ([apple/plugins-for-godot](https://github.com/apple/plugins-for-godot), MIT) with GDExtension architecture and visionOS hand tracking — the template for an iOS Vision framework backend ([plan](docs/plan/apple-vision-ios-backend.md))
+
+### Technical decisions made
+- **Body pose primary, hand model fallback**: trained hand model solves a harder problem than the games need; kept as precision layer
+- **Recorded corpus over live benchmarking**: every model sees identical frames; corpus becomes a publishable artifact
+- **Lexicographic ranking over weighted scores**: dropout → latency → identity → jitter → range; ordering encodes gameplay priorities
+- **No patent research on Nex**: their tech noted as proprietary, nothing more
+
+### What's next
+- Record benchmark corpus (~20 min webcam session)
+- Run 4-model benchmark, pick winner
+- Calibration screen in Godot
+- Blog post + benchmark repo
+
+---
+
 ## 2026-07-04 — Deep Research: Edge Hand Tracking, YOLO26 Training, Ecosystem Scan
 
 ### Research goal

@@ -69,12 +69,17 @@
 - [x] Ecosystem scan: RTMPose, Kazuhito00 gesture pattern, NVIDIA trt_pose_hand ([ecosystem-scan-round2.md](docs/research/ecosystem-scan-round2.md))
 - [x] 1-Euro filter (replaced EMA smoothing in `smoothing.gd`)
 - [x] Latency optimizations (downscale, throttling, fingertip tracking)
-- [ ] YOLO26n-pose training on hand-keypoints dataset (in progress, epoch 57/100, mAP50 89%)
-- [ ] RTMPose pretrained hand model evaluation (benchmark against YOLO26 and MediaPipe)
-- [ ] Pick winner model based on benchmarks
+- [x] YOLO26n-pose hand training COMPLETE (100 epochs: Pose mAP50 90.3%, Box mAP50 99.2%, ONNX exported)
+- [x] Gameplay requirements spec — hand as pointer, not skeleton ([gameplay-requirements.md](docs/research/gameplay-requirements.md))
+- [x] Nex Playground / Active Arcade analysis — 18-point body tracking is the production approach ([nex-playground-analysis.md](docs/research/nex-playground-analysis.md))
+- [ ] **STRATEGY PIVOT: body pose (wrists) as primary candidate** — person detection = free player identity
+- [ ] Recorded benchmark corpus (~10 clips: idle/slash × 1/2/3m, two-person, crossing)
+- [ ] Benchmark: YOLO26 body vs YOLO26 hand vs MediaPipe vs RTMPose — gates + lexicographic ranking
+- [ ] Pick winner model; publish blog post + open benchmark repo
+- [ ] Calibration screen (Nex-style: upper-body check, raise-hands-to-start)
 - [ ] ONNX Runtime GDExtension backend (replaces MediaPipe for production)
 - [ ] ML gesture classifier — Kazuhito00 pattern ([gesture-classifier.md](docs/plan/gesture-classifier.md))
-- [ ] Custom multi-person slash dataset collection and fine-tuning
+- [ ] Apple Vision iOS backend on Mac ([apple-vision-ios-backend.md](docs/plan/apple-vision-ios-backend.md))
 - [ ] Mobile deployment (ExecuTorch / LiteRT / ncnn)
 
 ---

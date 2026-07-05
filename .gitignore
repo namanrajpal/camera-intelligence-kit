@@ -46,6 +46,13 @@ wandb/
 __pycache__/
 *.pyc
 
+# Benchmark artifacts (published separately with blog post release)
+corpus/
+benchmark_results/
+models/rtmpose/*.zip
+models/rtmpose/rtmpose-s-body/
+.ipynb_checkpoints/
+
 # OS / editor
 .DS_Store
 Thumbs.db

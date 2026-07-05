@@ -1,8 +1,8 @@
 # Strategic Pivot: YOLO26 Hand Keypoint Tracking
 
 **Date:** 2026-07-04
-**Status:** Training in progress (epoch 57/100, mAP50 pose 89.0%, mAP50 box 99.1%)
-**Parallel track:** RTMPose pretrained models being evaluated simultaneously (see [ecosystem-scan-round2.md](../research/ecosystem-scan-round2.md))
+**Status:** TRAINING COMPLETE (100 epochs). Final: Pose mAP50 **90.3%**, Box mAP50 **99.2%**, 2.9ms GPU inference. ONNX exported (12.3 MB).
+**Strategy update:** Body pose (pretrained YOLO26n-pose COCO) is now the PRIMARY candidate; this hand model is the precision fallback. See [gameplay-requirements.md](../research/gameplay-requirements.md) — games need whole-hand position, not finger articulation. Nex Playground ships 18-point body tracking in production ([analysis](../research/nex-playground-analysis.md)).
 
 ---
 
@@ -138,15 +138,17 @@ After validating YOLO26 on the stock dataset, create a custom dataset:
 
 ---
 
-## Training Progress (live)
+## Training Results (FINAL)
 
 | Epoch | Box mAP50 | Box mAP50-95 | Pose mAP50 | Pose mAP50-95 | Status |
 |-------|-----------|--------------|------------|---------------|--------|
-| 25 | 98.9% | 85.6% | 84.1% | 69.3% | Checkpoint saved |
-| 52 | 99.1% | 88.0% | 88.8% | 74.6% | Checkpoint saved |
-| 57 | 99.1% | 88.2% | 89.0% | 74.9% | Currently training... |
+| 25 | 98.9% | 85.6% | 84.1% | 69.3% | Checkpoint |
+| 52 | 99.1% | 88.0% | 88.8% | 74.6% | Checkpoint |
+| 72 | 99.1% | 88.5% | 89.1% | 75.6% | Checkpoint |
+| **100 (final)** | **99.2%** | **89.1%** | **90.3%** | **77.1%** | **best.pt + best.onnx** |
 
-Training runs at ~2.5 it/s on RTX 3070 Ti, ~8 min/epoch. ETA for epoch 100: ~5-6 hours from start.
+Final validation speed: 0.2ms preprocess, **2.9ms inference** (RTX 3070 Ti), 0.3ms postprocess per image.
+Weights: `runs/pose/hand-yolo26n/weights/best.pt` (PyTorch) and `best.onnx` (12.3 MB, opset 20, simplified).
 
 ---
 
