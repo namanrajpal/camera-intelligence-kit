@@ -56,11 +56,15 @@
 
 ## Key findings beyond the hypotheses
 
-1. **The dataset-metric trap.** Our custom hand model scored 90.3% mAP50 on its validation set and is *useless in the actual deployment scenario* (room-scale distance). Static-dataset metrics said "great model"; the temporal, in-situ benchmark said "0% usable." This is the core argument of the blog post.
+1. **The hand-model ablation quantifies *why* body pose is the right paradigm.** A hand-specialized detector (90.3% mAP50 on its close-range dataset) produces ~0 detections at room scale — a hand at 1–3 m is a 30–60 px, often motion-blurred patch. This is a controlled demonstration that the *paradigm* (person-level detection with wrist keypoints), not model quality, is what makes room-scale tracking work. It also validates the metric gap: static dataset mAP cannot predict deployment behavior; temporal in-situ benchmarking can.
 2. **MediaPipe's numbers explain the unplayable game.** P95 43 ms (> 33 ms budget) + 70–93% slash dropout at 2 m is exactly the laggy, choppy feel we experienced in Fruit Chop.
 3. **RTMPose ties on reliability, loses only on latency** — our adapter runs YOLO person detection + sequential CPU-ONNX crops. With a GPU execution provider or batched crops it could compete. Optimization noted as future work.
 4. **Body models slightly over-detect** (mean 1.3–1.9 persons when 1 expected on some clips — background false positives/reflections). Doesn't affect dropout, but the game layer should keep the N largest person boxes and require calibration lock-in. Handled by the planned calibration screen.
 5. **Jitter ~45–48 px raw** at 720p for body wrists at rest — noticeable, but the 1-Euro filter in `AIInput` exists precisely for this.
+
+## Beyond model selection: the GamePose enhancement track
+
+Selecting a pretrained model is table stakes. The actual contribution is **specializing YOLO26-pose for room-scale motion games** — see [gamepose-enhancements.md](../plan/gamepose-enhancements.md): resolution operating-point study, velocity-predictive wrist tracking (effective-latency reduction), wrist-weighted fine-tuning, and motion-blur augmentation, each measured on this corpus.
 
 ## Decision
 

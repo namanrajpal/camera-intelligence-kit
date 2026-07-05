@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-07-04 — GamePose Experiments 1–2: Mobile Operating Point Found
+
+### What was done
+
+Reframed the narrative per review: the hand-model training is a **controlled ablation** (hand-scale vs person-scale paradigm), and the contribution track is **GamePose — specializing YOLO26-pose for room-scale motion games** ([plan + results](docs/plan/gamepose-enhancements.md)).
+
+**Experiment 1 — resolution operating point (DONE, major win):**
+- CPU: imgsz **320 = 2.2× faster than 640** (~26ms vs ~57ms P50), **~0% slash dropout preserved**, median wrist deviation ≤14px (vs 80px slash radius). **320 is the mobile export size.**
+- GPU: latency flat across sizes (nano model is overhead-bound on RTX 3070 Ti) — operating points must be chosen on target-class hardware.
+- Fixed deviation metric: largest-person matching + median (ghost-flicker robust).
+
+**Experiment 2 — velocity-predictive tracking (DONE, honest nuance):**
+- Constant-velocity prediction is WORSE than hold-last (−4.3%) on erratic slash motion; damped velocity only +5.4%. Prediction is not a free win; small optional AIInput feature at best.
+
+**Next (deferred):** Exp 3–4 wrist-weighted fine-tune + motion-blur augmentation (needs COCO-pose download).
+
+### Decision
+Godot integration proceeds with pretrained `yolo26n-pose`: **imgsz 640 desktop / 320 mobile**, wrists (kpts 9,10) → hand positions, person boxes (largest-N + calibration lock-in) → player identity.
+
+---
+
 ## 2026-07-04 — BENCHMARK COMPLETE: YOLO26 Body Pose Wins Decisively
 
 ### What was done
