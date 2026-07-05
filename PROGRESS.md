@@ -5,6 +5,32 @@
 
 ---
 
+## 2026-07-04 — BENCHMARK COMPLETE: YOLO26 Body Pose Wins Decisively
+
+### What was done
+
+**Recorded the 10-clip test corpus** (two people, 1280×720@30fps, ~5,500 frames): idle/slash at 1/2/3m, two-person idle/slash/crossing, walk-on. Every model evaluated on identical frames.
+
+**Ran the full 4-model benchmark** (executed headlessly, outputs baked into the notebook):
+
+| Model | P95 ms | Slash drop @2m | 2-player drop | Verdict |
+|---|---|---|---|---|
+| **yolo26_body (pretrained)** | **21.6** | **0.0%** | **0.0%** | **WINNER — passes all gates** |
+| yolo26_hand (ours, mAP50 90.3%) | 21.5 | 98.7% | 100% | FAIL — can't see room-scale hands |
+| mediapipe_hands (Tasks VIDEO) | 43.4 | 69.7% | 92.8% | FAIL — explains the unplayable game |
+| rtmpose_body (ONNX CPU) | 51.6 | 0.0% | 0.0% | FAIL on latency only |
+
+**Hypotheses:** H1 (body beats hand under fast motion) and H3 (hand detectors die with distance) CONFIRMED decisively. H4 confirmed by outcome. Full analysis: [`docs/research/benchmark-results-2026-07.md`](docs/research/benchmark-results-2026-07.md).
+
+**The headline finding (blog post core):** our custom hand model scores 90.3% mAP50 on its dataset and detects **zero hands** in the actual deployment scenario — static dataset metrics are dangerously misleading for room-scale motion games. The temporal, in-situ benchmark caught what mAP could not.
+
+**MediaPipe fixes during the run:** MediaPipe 0.10.35 removed the legacy `solutions` API; the adapter was ported to the Tasks `HandLandmarker` VIDEO API — the same API GDMP uses in Godot, making the baseline more representative. Also fixed jitter metric (per-wrist-slot) and per-clip tracker reset.
+
+### Decision
+**YOLO26n-pose (body) is the perception backend.** Wrists = hand positions, person boxes = player identity. Next: ONNX Runtime integration in Godot, calibration screen (also filters ghost detections), mobile round 2 on-device.
+
+---
+
 ## 2026-07-04 — YOLO26 Hand Training Complete; Strategy Pivot to Body Pose; Benchmark Design
 
 ### What was done

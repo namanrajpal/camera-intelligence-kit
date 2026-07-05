@@ -72,10 +72,11 @@
 - [x] YOLO26n-pose hand training COMPLETE (100 epochs: Pose mAP50 90.3%, Box mAP50 99.2%, ONNX exported)
 - [x] Gameplay requirements spec — hand as pointer, not skeleton ([gameplay-requirements.md](docs/research/gameplay-requirements.md))
 - [x] Nex Playground / Active Arcade analysis — 18-point body tracking is the production approach ([nex-playground-analysis.md](docs/research/nex-playground-analysis.md))
-- [ ] **STRATEGY PIVOT: body pose (wrists) as primary candidate** — person detection = free player identity
-- [ ] Recorded benchmark corpus (~10 clips: idle/slash × 1/2/3m, two-person, crossing)
-- [ ] Benchmark: YOLO26 body vs YOLO26 hand vs MediaPipe vs RTMPose — gates + lexicographic ranking
-- [ ] Pick winner model; publish blog post + open benchmark repo
+- [x] **STRATEGY PIVOT: body pose (wrists) as primary candidate** — person detection = free player identity
+- [x] Recorded benchmark corpus (10 clips: idle/slash × 1/2/3m, two-person, crossing, walk-on)
+- [x] Benchmark COMPLETE: **yolo26_body WINS** (P95 21.6ms, 0% slash dropout at all distances vs 69–100% for hand models) — [results](docs/research/benchmark-results-2026-07.md)
+- [ ] Publish blog post + open benchmark repo (corpus + harness + results)
+- [ ] Integrate YOLO26 body pose into Godot (ONNX Runtime backend, wrists → AIInput)
 - [ ] Calibration screen (Nex-style: upper-body check, raise-hands-to-start)
 - [ ] ONNX Runtime GDExtension backend (replaces MediaPipe for production)
 - [ ] ML gesture classifier — Kazuhito00 pattern ([gesture-classifier.md](docs/plan/gesture-classifier.md))
